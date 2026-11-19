@@ -1,0 +1,16 @@
+.gradle/
+build/
+run/
+versions/*/build/
+versions/*/run/
+versions/*/.gradle/
+dist/
+test-results/
+page-description.md
+*.zip
+*.tar.gz
+*.log
+.idea/
+*.iml
+out/
+bin/

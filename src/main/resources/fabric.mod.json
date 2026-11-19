@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "correctarrow",
+  "version": "${version}",
+  "name": "CorrectArrow",
+  "description": "Arrows stay exactly where they hit: on the real body part, following its animation. Works on players, every mob and modded creatures too.",
+  "authors": ["lilaktt"],
+  "license": "MIT",
+  "icon": "assets/correctarrow/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.correctarrow.CorrectArrow"],
+    "client": ["com.correctarrow.client.CorrectArrowClient"]
+  },
+  "mixins": ["correctarrow.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_range}",
+    "java": ">=${java_version}"
+  }
+}

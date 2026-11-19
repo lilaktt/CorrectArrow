@@ -1,0 +1,284 @@
+def TARGETS = [
+    '1.20'   : [label: '1.20-1.20.1',   range: '>=1.20 <1.20.2',    java: 17, loader: '0.18.6',
+                tests: ['1.20': '0.83.0+1.20', '1.20.1': '0.92.12+1.20.1']],
+    '1.20.2' : [label: '1.20.2',        range: '>=1.20.2 <1.20.3',  java: 17, loader: '0.18.6',
+                tests: ['1.20.2': '0.91.6+1.20.2']],
+    '1.20.3' : [label: '1.20.3-1.20.4', range: '>=1.20.3 <1.20.5',  java: 17, loader: '0.18.6',
+                tests: ['1.20.3': '0.91.1+1.20.3', '1.20.4': '0.97.3+1.20.4']],
+    '1.20.5' : [label: '1.20.5-1.20.6', range: '>=1.20.5 <1.21',    java: 21, loader: '0.18.6',
+                tests: ['1.20.5': '0.97.8+1.20.5', '1.20.6': '0.100.8+1.20.6']],
+    '1.21'   : [label: '1.21-1.21.1',   range: '>=1.21 <1.21.2',    java: 21, loader: '0.18.6',
+                tests: ['1.21': '0.102.0+1.21', '1.21.1': '0.116.18+1.21.1']],
+    '1.21.2' : [label: '1.21.2-1.21.3', range: '>=1.21.2 <1.21.4',  java: 21, loader: '0.18.6',
+                tests: ['1.21.2': '0.106.1+1.21.2', '1.21.3': '0.114.1+1.21.3']],
+    '1.21.4' : [label: '1.21.4',        range: '>=1.21.4 <1.21.5',  java: 21, loader: '0.18.6',
+                tests: ['1.21.4': '0.119.4+1.21.4']],
+    '1.21.5' : [label: '1.21.5',        range: '>=1.21.5 <1.21.6',  java: 21, loader: '0.18.6',
+                tests: ['1.21.5': '0.128.2+1.21.5']],
+    '1.21.6' : [label: '1.21.6-1.21.8', range: '>=1.21.6 <1.21.9',  java: 21, loader: '0.18.6',
+                tests: ['1.21.6': '0.128.2+1.21.6', '1.21.7': '0.129.0+1.21.7', '1.21.8': '0.136.1+1.21.8']],
+    '1.21.9' : [label: '1.21.9-1.21.10', range: '>=1.21.9 <1.21.11', java: 21, loader: '0.18.6',
+                tests: ['1.21.9': '0.134.1+1.21.9', '1.21.10': '0.138.4+1.21.10']],
+    '1.21.11': [label: '1.21.11',       range: '>=1.21.11 <1.21.12', java: 21, loader: '0.18.6',
+                tests: ['1.21.11': '0.141.6+1.21.11']],
+    '26.1'   : [label: '26.1-26.1.2',   range: '>=26.1 <26.2',      java: 25, loader: '0.18.6',
+                tests: ['26.1': '0.145.1+26.1', '26.1.1': '0.145.4+26.1.1', '26.1.2': '0.155.3+26.1.2']],
+    '26.2'   : [label: '26.2',          range: '>=26.2 <26.3',      java: 25, loader: '0.19.3',
+                tests: ['26.2': '0.161.0+26.2']],
+    '26.3'   : [label: '26.3',          range: '>=26.3 <26.4',      java: 25, loader: '0.19.5',
+                tests: ['26.3': '0.166.2+26.3']],
+]
+
+def target = TARGETS[project.name - 'mc-']
+def requested = project.findProperty('mc') as String
+def mc = requested != null && target.tests.containsKey(requested) ? requested : target.tests.keySet().first()
+def fabricApiVersion = target.tests[mc]
+
+def mcKey = { String v ->
+    def parts = v.split('\\.').collect { it as long }
+    while (parts.size() < 3) parts << 0L
+    parts[0] * 1_000_000L + parts[1] * 1_000L + parts[2]
+}
+long MC = mcKey(mc)
+boolean obf = MC < mcKey('26.1')
+boolean fabricGametest = MC >= mcKey('1.21.4')
+def FLAGS = [OBF: obf, FABRIC_GAMETEST: fabricGametest]
+
+def SWAPS = []
+if (MC < mcKey('1.21')) {
+    SWAPS += [
+        [/Identifier\.(fromNamespaceAndPath|withDefaultNamespace|parse)\(/, 'new Identifier('],
+        [/VertexConsumer;III\)V/, 'VertexConsumer;IIFFFF)V'],
+    ]
+}
+if (MC < mcKey('1.21.11')) {
+    SWAPS += [
+        [/\bIdentifier\b/, 'ResourceLocation'],
+        [/\.projectile\.arrow\./, '.projectile.'],
+        [/\/projectile\/arrow\//, '/projectile/'],
+        [/client\.model\.object\.projectile\.ArrowModel/, 'client.model.ArrowModel'],
+        [/import org\.jspecify\.annotations\.Nullable;/, ''],
+        [/@Nullable\s+/, ''],
+    ]
+}
+if (MC < mcKey('26.1')) {
+    SWAPS += [
+        [/renderer\.state\.level\.CameraRenderState/, 'renderer.state.CameraRenderState'],
+        [/renderer\/state\/level\/CameraRenderState/, 'renderer/state/CameraRenderState'],
+    ]
+}
+
+def evalCond = { String expr, String where ->
+    expr.split(/\|\|/).any { alternative ->
+        alternative.split(/&&/).every { raw ->
+            def term = raw.trim()
+            def m = term =~ /^MC\s*(>=|<=|==|!=|>|<)\s*([0-9.]+)$/
+            if (m.matches()) {
+                long v = mcKey(m.group(2))
+                switch (m.group(1)) {
+                    case '>=': return MC >= v
+                    case '<=': return MC <= v
+                    case '>': return MC > v
+                    case '<': return MC < v
+                    case '==': return MC == v
+                    default: return MC != v
+                }
+            }
+            boolean negate = term.startsWith('!')
+            def flag = negate ? term.substring(1).trim() : term
+            if (!FLAGS.containsKey(flag)) {
+                throw new GradleException("$where: unknown condition '$term'")
+            }
+            return FLAGS[flag] != negate
+        }
+    }
+}
+
+def preprocess = { String text, String where ->
+    def out = new StringBuilder()
+    def stack = []
+    boolean active = true
+    int lineNo = 0
+    text.eachLine { line ->
+        lineNo++
+        def t = line.trim()
+        if (t.startsWith('//#if ')) {
+            boolean c = active && evalCond(t.substring(6), "$where:$lineNo")
+            stack.add([active, c])
+            active = c
+        } else if (t.startsWith('//#elseif ')) {
+            if (stack.isEmpty()) throw new GradleException("$where:$lineNo: //#elseif without //#if")
+            def frame = stack[-1]
+            boolean c = frame[0] && !frame[1] && evalCond(t.substring(10), "$where:$lineNo")
+            if (c) frame[1] = true
+            active = c
+        } else if (t == '//#else') {
+            if (stack.isEmpty()) throw new GradleException("$where:$lineNo: //#else without //#if")
+            def frame = stack[-1]
+            active = frame[0] && !frame[1]
+            frame[1] = true
+        } else if (t == '//#endif') {
+            if (stack.isEmpty()) throw new GradleException("$where:$lineNo: //#endif without //#if")
+            active = stack.removeLast()[0]
+        } else if (active) {
+            def kept = line
+            SWAPS.each { swap -> kept = kept.replaceAll(swap[0], swap[1]) }
+            out << kept
+        }
+        out << '\n'
+    }
+    if (!stack.isEmpty()) throw new GradleException("$where: unclosed //#if")
+    out.toString()
+}
+
+def srcRoot = rootProject.file('src')
+def preDir = layout.buildDirectory.dir('pre').get().asFile
+def preprocessTask = tasks.register('preprocessSources') {
+    inputs.dir(srcRoot)
+    inputs.property('mc', mc)
+    outputs.dir(preDir)
+    doLast {
+        project.delete(preDir)
+        srcRoot.eachFileRecurse(groovy.io.FileType.FILES) { f ->
+            def rel = srcRoot.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+            def out = new File(preDir, rel)
+            out.parentFile.mkdirs()
+            if (f.name.endsWith('.java') || f.name.endsWith('.json')) {
+                out.setText(preprocess(f.getText('UTF-8'), "src/$rel"), 'UTF-8')
+            } else {
+                out.bytes = f.bytes
+            }
+        }
+    }
+}
+
+base { archivesName = rootProject.name }
+version = "${project.mod_version}+mc${target.label}"
+group = project.maven_group
+
+repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:$mc"
+    if (obf) {
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${target.loader}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:$fabricApiVersion"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${target.loader}"
+        implementation "net.fabricmc.fabric-api:fabric-api:$fabricApiVersion"
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDirs = [new File(preDir, 'main/java')]
+        resources.srcDirs = [new File(preDir, 'main/resources')]
+    }
+}
+
+if (fabricGametest) {
+    fabricApi {
+        configureTests {
+            createSourceSet = true
+            modId = "correctarrow_test"
+            enableGameTests = false
+            eula = true
+        }
+    }
+} else {
+    sourceSets {
+        gametest {
+            compileClasspath += main.compileClasspath + main.output
+            runtimeClasspath += main.runtimeClasspath + main.output
+        }
+    }
+    loom {
+        mods {
+            correctarrow { sourceSet sourceSets.main }
+            correctarrow_test { sourceSet sourceSets.gametest }
+        }
+        runs {
+            clientGameTest {
+                client()
+                name = "Client Game Test"
+                source sourceSets.gametest
+                runDir "build/run/clientGameTest"
+                vmArg "-Dcorrectarrow.harness=own"
+            }
+        }
+    }
+}
+sourceSets.gametest.java.srcDirs = [new File(preDir, 'gametest/java')]
+sourceSets.gametest.resources.srcDirs = [new File(preDir, 'gametest/resources')]
+
+loom {
+    runs.configureEach {
+        if (name == "clientGameTest" && project.hasProperty("testOnly")) {
+            vmArg "-Dcorrectarrow.test.only=${project.property('testOnly')}"
+        }
+    }
+}
+
+tasks.matching { it.name in ['compileJava', 'processResources', 'sourcesJar', 'compileGametestJava', 'processGametestResources'] }
+        .configureEach { dependsOn preprocessTask }
+
+processResources {
+    def props = [version: project.version, minecraft_range: target.range, loader_version: obf ? '0.16.0' : target.loader,
+                 java_version: target.java]
+    inputs.properties props
+    filteringCharset "UTF-8"
+    filesMatching("fabric.mod.json") { expand props }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = target.java as int
+    it.options.encoding = "UTF-8"
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.toVersion(target.java)
+    targetCompatibility = JavaVersion.toVersion(target.java)
+}
+
+jar {
+    from(rootProject.file("LICENSE")) { rename { "${it}_correctarrow" } }
+}
+
+def testModJar = tasks.register('gametestJar', Jar) {
+    from sourceSets.gametest.output
+    archiveClassifier = 'gametest-dev'
+    destinationDirectory = layout.buildDirectory.dir('devlibs')
+}
+def loomClass = { String name -> Class.forName(name, true, project.extensions.getByName('loom').getClass().classLoader) }
+def testModProd = testModJar
+def modProd = tasks.named('jar')
+if (obf) {
+    testModProd = tasks.register('remapGametestJar', loomClass('net.fabricmc.loom.task.RemapJarTask')) {
+        inputFile = testModJar.flatMap { it.archiveFile }
+        archiveClassifier = 'gametest'
+        destinationDirectory = layout.buildDirectory.dir('devlibs')
+        addNestedDependencies = false
+    }
+    modProd = tasks.named('remapJar')
+}
+def prodFabricApi = configurations.detachedConfiguration(dependencies.create("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion"))
+prodFabricApi.transitive = true
+prodFabricApi.exclude(group: 'net.fabricmc', module: 'fabric-loader')
+tasks.register('prodClientGameTest', loomClass('net.fabricmc.loom.task.prod.ClientProductionRunTask')) {
+    dependsOn modProd, testModProd
+    mods.from(modProd.flatMap { it.archiveFile })
+    mods.from(testModProd.flatMap { it.archiveFile })
+    mods.from(prodFabricApi)
+    useXVFB = false
+    runDir = layout.buildDirectory.dir('run/prodClientGameTest')
+    jvmArgs.add("-Dcorrectarrow.test.only=" + (project.findProperty('testOnly') ?: 'humanoid,modded,nomodel,sync,self,bow'))
+    if (fabricGametest) {
+        jvmArgs.add("-Dfabric.client.gametest")
+    } else {
+        jvmArgs.add("-Dcorrectarrow.harness=own")
+    }
+}
