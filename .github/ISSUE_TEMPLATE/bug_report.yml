@@ -1,0 +1,121 @@
+name: Bug report
+description: Arrows in the wrong place, a crash, or anything else that does not work
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The more of this you fill in, the faster it gets fixed.
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options:
+        - "26.3"
+        - "26.2"
+        - "26.1.2"
+        - "26.1.1"
+        - "26.1"
+        - "1.21.11"
+        - "1.21.10"
+        - "1.21.9"
+        - "1.21.8"
+        - "1.21.7"
+        - "1.21.6"
+        - "1.21.5"
+        - "1.21.4"
+        - "1.21.3"
+        - "1.21.2"
+        - "1.21.1"
+        - "1.21"
+        - "1.20.6"
+        - "1.20.5"
+        - "1.20.4"
+        - "1.20.3"
+        - "1.20.2"
+        - "1.20.1"
+        - "1.20"
+    validations:
+      required: true
+  - type: input
+    id: mod-version
+    attributes:
+      label: CorrectArrow version
+      description: The file name of the jar, e.g. correctarrow-1.0.0+mc1.21.4.jar
+      placeholder: correctarrow-1.0.0+mc1.21.4.jar
+    validations:
+      required: true
+  - type: dropdown
+    id: loader
+    attributes:
+      label: Mod loader
+      options:
+        - Fabric
+        - NeoForge
+        - Forge
+        - Other (for example Sinytra Connector)
+    validations:
+      required: true
+  - type: input
+    id: loader-version
+    attributes:
+      label: Loader and Fabric API versions
+      placeholder: Fabric Loader 0.18.6, Fabric API 0.119.4+1.21.4
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      options:
+        - Singleplayer
+        - Multiplayer server
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect instead?
+      placeholder: The arrow I shot into a zombie's head shows up in its leg.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Spawn a husk
+        2. Shoot it in the head with a bow
+        3. The arrow appears in the leg
+    validations:
+      required: true
+  - type: input
+    id: creature
+    attributes:
+      label: Which creature?
+      description: Player, a vanilla mob, or a modded one (name the mod)
+      placeholder: Husk / player / Wolf from Alex's Mobs
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other mods or modpack
+      description: The full list, or the modpack name and version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log or crash report
+      description: Upload latest.log or the crash report to https://mclo.gs and paste the link here
+      placeholder: https://mclo.gs/...
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or video
+      description: Drag images here; a picture of where the arrow is drawn helps a lot
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I tried with only CorrectArrow and Fabric API (or the loader's API) installed
+        - label: I checked that this is not already reported
