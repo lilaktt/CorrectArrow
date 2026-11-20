@@ -5,7 +5,7 @@
   "name": "CorrectArrow",
   "description": "Arrows stay exactly where they hit: on the real body part, following its animation. Works on players, every mob and modded creatures too.",
   "authors": ["lilaktt"],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "icon": "assets/correctarrow/icon.png",
   "environment": "*",
   "entrypoints": {

@@ -246,6 +246,7 @@ java {
 
 jar {
     from(rootProject.file("LICENSE")) { rename { "${it}_correctarrow" } }
+    from(rootProject.file("NOTICE")) { rename { "${it}_correctarrow" } }
 }
 
 def testModJar = tasks.register('gametestJar', Jar) {
